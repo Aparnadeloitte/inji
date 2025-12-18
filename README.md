@@ -1,1 +1,1 @@
-echo "# inji"
+inji
