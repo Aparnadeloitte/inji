@@ -1,0 +1,18 @@
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  labels:
+    app.kubernetes.io/name: mimoto
+    helm.sh/chart: ""
+    app.kubernetes.io/instance: mimoto
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/component: mosip
+  name: mimoto
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: mimoto
+subjects:
+  - kind: ServiceAccount
+    name: mimoto
+    namespace: inji

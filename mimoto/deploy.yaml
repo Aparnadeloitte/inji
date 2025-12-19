@@ -1,0 +1,136 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  labels:
+    app.kubernetes.io/name: mimoto
+    helm.sh/chart: ""
+    app.kubernetes.io/instance: mimoto
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/component: mosip
+  name: mimoto
+  namespace: inji
+  annotations:
+spec:
+  replicas: 1
+  strategy:
+    type: RollingUpdate
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: mimoto
+      app.kubernetes.io/instance: mimoto
+  template:
+    metadata:
+      annotations:
+      labels:
+        app.kubernetes.io/name: mimoto
+        helm.sh/chart: ""
+        app.kubernetes.io/instance: mimoto
+        app.kubernetes.io/managed-by: Helm
+    spec:
+      serviceAccountName: mimoto
+      affinity:
+        podAffinity:
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+            - podAffinityTerm:
+                labelSelector:
+                  matchLabels:
+                    app.kubernetes.io/name: mimoto
+                    app.kubernetes.io/instance: mimoto
+                namespaces:
+                  - "inji"
+                topologyKey: kubernetes.io/hostname
+              weight: 1
+        nodeAffinity:
+      initContainers:
+      imagePullSecrets:
+        - name: acr-auth
+      containers:
+        - name: mimoto
+          image: docker.io/mosipid/mimoto:0.20.0
+          imagePullPolicy: Always
+          env:
+            - name: container_user
+              value: mosip
+            - name: JDK_JAVA_OPTIONS
+              value: -Xms1500M -Xmx1500M
+            - name: SPRING_CONFIG_LOCATION
+              value: /home/mosip/mimoto-local.properties
+            - name: spring_profiles_active
+              value: local
+            - name: SPRING_CONFIG_NAME
+              value: mimoto
+            - name: mosip.esignet.integration.scan-base-package
+              value: io.mosip.esignet.mock.integration,io.mosip.authentication.esignet.integration
+            - name: KEYSTORE_P12_PATH
+              value: /home/mosip/certs
+            - name: P12_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: oidc-p12-secret
+                  key: oidc_password
+          envFrom:
+          #- configMapRef:
+
+          #name: esignet-artifactory-dev-share
+
+          #- configMapRef:
+
+          #name: esignet-softhsm-dev-share
+          ports:
+            - name: spring-service
+              containerPort: 8099
+          resources:
+            limits:
+              cpu: 1000m
+              memory: 1750Mi
+            requests:
+              cpu: 500m
+              memory: 1000Mi
+          startupProbe:
+            failureThreshold: 30
+            httpGet:
+              path: /v1/mimoto/actuator/health
+              port: 8099
+            initialDelaySeconds: 0
+            periodSeconds: 10
+            successThreshold: 1
+            timeoutSeconds: 5
+          livenessProbe:
+            failureThreshold: 6
+            httpGet:
+              path: /v1/mimoto/actuator/health
+              port: 8099
+            initialDelaySeconds: 20
+            periodSeconds: 10
+            successThreshold: 1
+            timeoutSeconds: 5
+          readinessProbe:
+            failureThreshold: 6
+            httpGet:
+              path: /v1/mimoto/actuator/health
+              port: 8099
+            initialDelaySeconds: 0
+            periodSeconds: 10
+            successThreshold: 1
+            timeoutSeconds: 5
+          volumeMounts:
+            - mountPath: /home/mosip/mimoto-local.properties
+              name: mimoto-properties
+              subPath: mimoto-local.properties
+            - name: landing-folder
+              mountPath: /mnt/landing
+            - name: mimotooidc
+              mountPath: /home/mosip/certs
+            - mountPath: /home/mosip/mimoto-issuers-config.json
+              name: mimoto-properties
+              subPath: mimoto-issuers-config.json
+      volumes:
+        - name: landing-folder
+          emptyDir: {}
+        - name: mimotooidc
+          secret:
+            secretName: mimotooidc
+        - name: mimoto-properties
+          configMap:
+            name: mimoto-local-properties
